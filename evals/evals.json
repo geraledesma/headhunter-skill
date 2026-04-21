@@ -1,0 +1,160 @@
+[
+  {
+    "id": "scan-with-filters",
+    "name": "Job scan applies filters and offers JD save",
+    "prompt": "Scan for job openings for me. My vault is at ~/Documents/vault. Agent folder is headhunter.",
+    "vault_state": {
+      "raw/profile.md": "seniority_floor: Senior\nsalary_floor_local: 120000\ngeography: Mexico City or remote\nexclusions:\n  - [ACME Corp]\ntarget_roles:\n  - Investment Product Strategy\n  - Index Portfolio Manager",
+      "raw/experience-bank.md": "[populated with sample entries]",
+      "raw/firms-contacts.md": "[populated]",
+      "wiki/pipeline.md": "# Pipeline\n| Firm | Role | Status | Applied | Last update | Channel | CV code | Contact | JD saved | Notes |\n",
+      "wiki/sessions.md": "[initialized]",
+      "wiki/cv-strategy.md": "[populated]"
+    },
+    "expected_behavior": "Skill reads profile.md filters before searching. Presents results as a scored table (Firm | Role | Fit Score | Why it fits | Channel | Notes). Does not show excluded firms. Flags roles with unlisted salary. After presenting results, offers to save full JDs and log to pipeline. Does not log anything without user confirmation.",
+    "assertions": [
+      "reads seniority_floor, salary_floor, geography, exclusions from profile.md before any search",
+      "drops excluded firms from results without surfacing them",
+      "output is a table with columns: Firm, Role, Fit Score, Why it fits, Channel, Notes",
+      "offers to save JD for each role the user expresses interest in",
+      "asks before adding anything to pipeline.md",
+      "does not modify any file without explicit yes"
+    ]
+  },
+  {
+    "id": "cv-tailor-text",
+    "name": "CV tailor produces diff and confirms before writing",
+    "prompt": "Tailor my CV for the Senior Analyst role at Meridian Asset Management.",
+    "vault_state": {
+      "raw/experience-bank.md": "[populated with sample roles, bullets, framing rules]",
+      "wiki/cv-strategy.md": "## Version Registry\n| Code | Sector | Status | Last updated |\n| A | Asset Management | approved | 2026-03-01 |\n\n## Sector rules — Asset Management\n- Lead with index/portfolio analytics\n- Emphasize institutional client coverage\n- Use quantified outcomes",
+      "wiki/jd-log/meridian-senior-analyst-2026-04-01.md": "Role: Senior Analyst\nFirm: Meridian Asset Management\nRequirements: 5+ years index or portfolio analytics, Python, client-facing..."
+    },
+    "expected_behavior": "Skill loads the JD from jd-log/ automatically. Reads experience-bank.md and cv-strategy.md A-code rules. Outputs a per-section diff (current → proposed). Marks any JD requirements not covered in experience-bank as [MISSING]. Asks before writing cv-strategy.md session log. Offers ATS review after.",
+    "assertions": [
+      "loads JD from jd-log/ without asking user to paste it",
+      "reads experience-bank.md and sector rules from cv-strategy.md",
+      "output shows current content vs proposed content as a diff",
+      "marks uncovered JD requirements as [MISSING]",
+      "does not add unverified facts to any content",
+      "asks 'Update cv-strategy.md to log this session?' before writing",
+      "offers ATS review after output"
+    ]
+  },
+  {
+    "id": "draft-outreach-approval-gate",
+    "name": "Draft outreach respects 300-char limit and requires approval",
+    "prompt": "Draft a LinkedIn message to Sarah Kim at Vanguard.",
+    "vault_state": {
+      "raw/firms-contacts.md": "## Vanguard\nTier: 2\n### Sarah Kim\nTitle: Director, Product Strategy\nRelationship: met at CFA event 2025\nLast contact: 2025-11-10\nNotes: expressed interest in index ops background",
+      "raw/profile.md": "target_roles:\n  - Investment Product Strategy\n  - Index Portfolio Manager"
+    },
+    "expected_behavior": "Reads firms-contacts.md for Sarah Kim's context. Reads profile.md for positioning. Drafts LinkedIn message that is ≤300 characters, warm, and references the CFA event or her specific interest. Shows character count. Ends with approval gate asking yes/edit/discard. Does NOT send or save the message without explicit yes.",
+    "assertions": [
+      "reads contact entry for Sarah Kim from firms-contacts.md",
+      "draft is 300 characters or fewer (hard limit)",
+      "shows character count alongside the draft",
+      "message references something specific (event, her work, or role angle) — not generic",
+      "ends with 'Send this message? (yes / edit / discard)'",
+      "does not log to firms-contacts.md or send anything without yes"
+    ]
+  },
+  {
+    "id": "log-application",
+    "name": "Log application appends to pipeline and saves JD",
+    "prompt": "I just applied to BlackRock for their VP Index Strategy role on LinkedIn.",
+    "vault_state": {
+      "wiki/pipeline.md": "# Pipeline\n| Firm | Role | Status | Applied | Last update | Channel | CV code | Contact | JD saved | Notes |\n",
+      "wiki/sessions.md": "[initialized]",
+      "wiki/jd-log/": {}
+    },
+    "expected_behavior": "Collects all fields (firm, role, date, channel, CV version, contact). Asks user to paste JD or skip. Shows a preview row before writing. Asks 'Log this application? (yes / no)'. Only writes after explicit yes. Saves JD to wiki/jd-log/ if provided.",
+    "assertions": [
+      "collects firm, role, date, channel, CV version in one message",
+      "asks whether user wants to save JD",
+      "shows a preview pipeline row before writing",
+      "asks 'Log this application? (yes / no)' before any write",
+      "does not write to pipeline.md without yes",
+      "saves JD to wiki/jd-log/{firm}-{role}-{date}.md if provided"
+    ]
+  },
+  {
+    "id": "proactive-session-overdue",
+    "name": "Proactive check surfaces overdue sessions before routing",
+    "prompt": "headhunter",
+    "vault_state": {
+      "raw/profile.md": "[populated]",
+      "raw/experience-bank.md": "[populated]",
+      "raw/firms-contacts.md": "[populated]",
+      "wiki/cv-strategy.md": "[no pending versions]",
+      "wiki/pipeline.md": "[no stale entries]",
+      "wiki/sessions.md": "| weekly-review | 2026-03-18 | 7 days | overdue |\n| linkedin-session | never | 60 days | overdue |\n| experience-bank-session | 2026-01-10 | 90 days | overdue |\n| cv-strategy-session | 2026-03-25 | 30 days | overdue |"
+    },
+    "expected_behavior": "Before asking what the user wants to do, skill checks sessions.md and surfaces overdue sessions. Limits to at most 2–3 suggestions to avoid overwhelming. Then asks what the user would like to do.",
+    "assertions": [
+      "reads wiki/sessions.md in Step 1b before routing",
+      "surfaces at least 1 overdue session with days-since information",
+      "surfaces no more than 3 items total in proactive check",
+      "after surfacing, asks what the user would like to do — does not auto-start a session"
+    ]
+  },
+  {
+    "id": "weekly-review",
+    "name": "Weekly review computes stats and flags bottleneck",
+    "prompt": "Run my weekly job search review.",
+    "vault_state": {
+      "wiki/pipeline.md": "| Apex Partners | VP Strategy | applied | 2026-04-14 | 2026-04-14 | LinkedIn | A | — | yes | |\n| Nexus Capital | Senior Analyst | applied | 2026-04-15 | 2026-04-15 | Referral | A | Jane Doe | yes | |\n| Summit Advisors | Director | applied | 2026-04-16 | 2026-04-16 | Company portal | B | — | no | |\n| Meridian AM | Senior Analyst | screening | 2026-04-17 | 2026-04-18 | LinkedIn | A | — | yes | |",
+      "wiki/sessions.md": "| weekly-review | 2026-04-14 | 7 days | overdue |"
+    },
+    "expected_behavior": "Reads pipeline.md and filters for the past 7 days. Computes applications (3), responses (1), response rate (33%), interviews (0). Surfaces bottleneck if response rate is low. Asks for next-week goals. Asks before logging session to sessions.md.",
+    "assertions": [
+      "reads wiki/pipeline.md and filters to past 7 days",
+      "outputs a metrics table with applications, responses, response rate, interviews",
+      "flags a bottleneck based on conversion data",
+      "asks 'Goals for next week?' before logging",
+      "asks confirmation before updating wiki/sessions.md",
+      "does not write to sessions.md without yes"
+    ]
+  },
+  {
+    "id": "cover-letter",
+    "name": "Cover letter drafts 3-paragraph letter and saves after approval",
+    "prompt": "Write me a cover letter for the Index Strategy VP role at Summit Advisors.",
+    "vault_state": {
+      "raw/experience-bank.md": "[populated with at least 2 quantified accomplishments]",
+      "raw/profile.md": "gap_narrative: My previous role was eliminated in a company restructuring — I have documentation and strong references.",
+      "wiki/jd-log/summit-advisors-index-strategy-vp-2026-04-16.md": "Role: VP Index Strategy\nFirm: Summit Advisors\nRequirements: 7+ years index management, client-facing, team leadership..."
+    },
+    "expected_behavior": "Loads JD from jd-log/ automatically. Reads experience-bank for top 2–3 accomplishments relevant to the JD. Reads profile.md for gap narrative. Drafts 3-paragraph cover letter: hook → evidence → close. No filler phrases. Offers to save. Does not save without yes. Offers ATS review after.",
+    "assertions": [
+      "loads JD from wiki/jd-log/ without asking user to paste",
+      "uses only content sourced from experience-bank.md — no invented claims",
+      "draft has exactly 3 paragraphs: hook, evidence, close",
+      "includes gap narrative from profile.md if gap exists",
+      "no filler openers ('I am writing to express...')",
+      "asks 'Save this cover letter? (yes / edit / discard)' before writing",
+      "saves to outputs/cover-letters/ only after yes",
+      "offers ATS review after"
+    ]
+  },
+  {
+    "id": "networking-strategy",
+    "name": "Networking strategy maps contacts to targets and produces ranked list",
+    "prompt": "Let's do a networking strategy session.",
+    "vault_state": {
+      "raw/firms-contacts.md": "## Tier 1\n### Apex Partners (no contacts)\n### Summit Advisors\n- Jane Doe, Director — warm, met at conference\n\n## Tier 2\n### Meridian AM\n- Bob Chen, VP — lukewarm, mutual LinkedIn connection\n### Nexus Capital (no contacts)",
+      "wiki/pipeline.md": "| Summit Advisors | Director | applied | 2026-04-16 | 2026-04-16 | Company portal | B | — | no | |",
+      "raw/profile.md": "[populated with target roles and tier preferences]",
+      "wiki/sessions.md": "| networking-strategy | never | 30 days | overdue |"
+    },
+    "expected_behavior": "Reads firms-contacts.md and pipeline.md. Maps each Tier 1 and Tier 2 firm to warm/lukewarm/cold. Identifies firms with no contacts. Produces a ranked outreach sequence (warm first, then lukewarm, then cold). Asks before saving to firms-contacts.md. Logs session to sessions.md after confirmation.",
+    "assertions": [
+      "reads firms-contacts.md and classifies each target firm as warm/lukewarm/cold",
+      "identifies Tier 1 firms with no contacts as needing a cold strategy",
+      "outputs a ranked outreach sequence table with timing and suggested angle",
+      "asks 'Save sequencing plan to firms-contacts.md? (yes / skip)'",
+      "does not write without yes",
+      "logs session in sessions.md after confirmation"
+    ]
+  }
+]
