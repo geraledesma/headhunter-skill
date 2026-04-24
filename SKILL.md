@@ -33,24 +33,37 @@ The skill expects this layout (creates it on first run if missing):
 ```
 <vault-root>/
 └── agents/<agent-name>/
-    ├── raw/
+    ├── 01-candidate-side/
     │   ├── profile.md            ← identity, target roles, filters, compensation floor  (REQUIRED)
     │   ├── experience-bank.md    ← verified work history, metrics, framing rules        (REQUIRED)
+    │   ├── linkedin.md           ← headline, about, skills positioning                  (optional)
+    │   └── assets/               ← cover-letters, firm-profiles, 90day-plans, exports
+    ├── 02-hiring-side/
     │   ├── firms-contacts.md     ← target firms by tier + contact registry              (REQUIRED)
-    │   └── linkedin.md           ← headline, about, skills positioning                  (optional)
-    ├── wiki/
+    │   ├── fintech-targets.md    ← sector targets (optional)
+    │   ├── firm-notes/           ← outreach + firm deep-dive notes
+    │   └── job-descriptions/
+    │       ├── active/           ← JD markdown per live application                       (REQUIRED)
+    │       └── archive/          ← historical JD imports
+    ├── 03-active-search/
     │   ├── cv-strategy.md        ← CV version registry, tailoring rules, approval log  (REQUIRED)
     │   ├── pipeline.md           ← active + historical application log                  (REQUIRED)
     │   ├── sessions.md           ← session history + cadence tracking                   (REQUIRED)
-    │   └── jd-log/               ← full JD files per role {firm}-{role}-{date}.md       (REQUIRED)
-    ├── cv-versions/              ← named .docx/.pdf CV variants
-    └── outputs/
-        ├── cover-letters/        ← {firm}-{role}-{date}.md
-        ├── firm-profiles/        ← {firm}-{date}.md
-        └── 90day-plans/          ← {firm}-{role}-{date}.md
+    │   ├── application-events.md ← append-only application event log                      (REQUIRED)
+    │   └── plans/                ← weekly / campaign fragments (optional)
+    ├── 04-search-record/         ← dated audits, lints, opportunity scans (optional)
+    ├── 90-system/
+    │   ├── runbook.md            ← agent behavior + mandatory logging rules
+    │   └── index.md              ← navigation
+    └── cv-versions/              ← named .docx/.pdf CV variants (optional symlink)
 ```
 
 The agent-name is typically `headhunter` but can be anything the user calls it.
+
+### Mandatory behaviors (always on)
+
+1. **Vault memory after material updates:** Whenever the user confirms an application, status change, interview, rejection, referral, or other material job-search fact, **append to `03-active-search/application-events.md` and update `03-active-search/pipeline.md` in the same session** (show diff, confirm if policy requires — default is proactive save per `90-system/runbook.md`).
+2. **JD save prompt:** Whenever the user says they **applied** or **will apply** to a role, **ask once**: “Save the full JD under `02-hiring-side/job-descriptions/active/` now?” If they decline, set `JD Status` to `pending` in the pipeline and log a follow-up in `application-events.md`. Never silently skip the question.
 
 ---
 
@@ -58,7 +71,7 @@ The agent-name is typically `headhunter` but can be anything the user calls it.
 
 Check which integrations are available:
 
-1. **Notion**: Read `raw/profile.md § Config` for `notion_enabled`. If `true`, verify
+1. **Notion**: Read `01-candidate-side/profile.md § Config` for `notion_enabled`. If `true`, verify
    `mcp__claude_ai_Notion__notion-search` is callable. If not callable, set `notion_available = false`
    and note it silently.
 
@@ -70,7 +83,7 @@ Check which integrations are available:
    - Success → set `gmail_available = true`
    - Any error → set `gmail_available = false`
 
-Read `raw/profile.md § Config` to cache user preferences:
+Read `01-candidate-side/profile.md § Config` to cache user preferences:
 - `notion_enabled`, `salary_floor`, `geography`, `seniority_floor`, `exclusions`, `timezone`
 
 ---
@@ -85,7 +98,7 @@ Before doing anything else, figure out where the vault lives:
    Also ask: "What's the agent folder called? (default: `headhunter`)"
 
 Then check which files exist at `<vault-root>/agents/<agent-name>/`:
-- `raw/profile.md`, `raw/experience-bank.md`, `raw/firms-contacts.md` all present → continue to Step 1b
+- `01-candidate-side/profile.md`, `01-candidate-side/experience-bank.md`, `02-hiring-side/firms-contacts.md` all present → continue to Step 1b
 - Some missing → offer to run Onboarding for missing files, then continue
 - None present → go to **Onboarding** mode
 
@@ -97,21 +110,21 @@ Run these checks after confirming vault files exist. Surface at most 3 items to 
 overwhelming the user. Prioritize by urgency.
 
 **Check A — Overdue sessions:**
-Read `wiki/sessions.md` session table. For each session with a cadence target (not
+Read `03-active-search/sessions.md` session table. For each session with a cadence target (not
 `per application` / `per event` / `per campaign` / `per firm` / `per interview`), compare
 `last_completed` to today. If overdue, surface up to 2 suggestions:
 > "Your [session-type] session was [N] days ago (cadence: every [X] days) — want to run one today?"
 
 **Check B — Stale pipeline entries:**
-Read `wiki/pipeline.md`. Flag any `active` or `in-progress` entries with no update in >7 days:
+Read `03-active-search/pipeline.md`. Flag any `active` or `in-progress` entries with no update in >7 days:
 > "⚠️  [Firm] – [Role] has had no update in [N] days — worth checking on?"
 
 **Check C — Pending CV approvals:**
-Scan `wiki/cv-strategy.md` for any version rows marked `pending`. If found:
+Scan `03-active-search/cv-strategy.md` for any version rows marked `pending`. If found:
 > "📋  [N] CV version(s) pending approval: [codes]. Review now or later?"
 
 **Check D — Unsaved JDs:**
-Scan `wiki/pipeline.md` for entries without a corresponding file in `wiki/jd-log/`. If any:
+Scan `03-active-search/pipeline.md` for rows where `JD Status` ≠ `complete` / `JD File` missing, or no matching markdown under `02-hiring-side/job-descriptions/` (`active/` + `archive/`). If any:
 > "📎  [N] pipeline entries have no saved JD — save them now for future ATS cross-checks?"
 
 Run all four checks. If none fire, proceed to routing silently.
@@ -152,7 +165,7 @@ Run all four checks. If none fire, proceed to routing silently.
 **Goal:** Find role matches against the user's criteria, score them, and log JDs for future use.
 
 ### Read
-- `raw/profile.md` — extract filters: `seniority_floor`, `salary_floor`, `geography`,
+- `01-candidate-side/profile.md` — extract filters: `seniority_floor`, `salary_floor`, `geography`,
   `target_roles`, `exclusions`
 
 ### Search
@@ -182,11 +195,11 @@ Flag roles where salary is unlisted, Easy Apply only, or location is ambiguous.
 ### Save JDs
 After presenting results, for each role the user is interested in:
 "Save full JD for [Firm – Role]? (yes / skip)"
-→ Save to `wiki/jd-log/{firm-slug}-{role-slug}-{YYYY-MM-DD}.md`
+→ Save to `02-hiring-side/job-descriptions/active/` using vault naming `company__role__source__YYYY-MM-DD.md` (see `02-hiring-side/job-descriptions/README.md`)
 
 ### Log to pipeline
 "Add any of these to your pipeline? (list numbers or skip)"
-→ For each selected: add row to `wiki/pipeline.md` with status `interested`
+→ For each selected: add row to `03-active-search/pipeline.md` with status `interested`
 
 ---
 
@@ -195,7 +208,7 @@ After presenting results, for each role the user is interested in:
 **Goal:** Show the full pipeline state, flag stale entries, and collect status updates.
 
 ### Read
-- `wiki/pipeline.md` — all entries
+- `03-active-search/pipeline.md` — all entries
 
 If `notion_available = true`, offer: "Sync pipeline status from Notion? (yes / skip)"
 → If yes: run `mcp__claude_ai_Notion__notion-search` against the pipeline database and merge statuses
@@ -220,9 +233,9 @@ Risk flag (🔴) if: no update in >7 days while status is `applied` or `screenin
 
 ### Input
 1. Ask: "Which firm and role are you tailoring for?"
-2. Load JD: check `wiki/jd-log/` for a match → if found, load it; else ask user to paste the JD
-3. Read `wiki/cv-strategy.md` — find existing CV code for this firm/sector, load tailoring rules
-4. Read `raw/experience-bank.md` — extract relevant accomplishments, metrics, framing rules
+2. Load JD: check `02-hiring-side/job-descriptions/active/` for a match → if found, load it; else ask user to paste the JD
+3. Read `03-active-search/cv-strategy.md` — find existing CV code for this firm/sector, load tailoring rules
+4. Read `01-candidate-side/experience-bank.md` — extract relevant accomplishments, metrics, framing rules
 
 ### Process
 - Map JD keywords to experience-bank bullets
@@ -268,8 +281,8 @@ Log to cv-strategy.md: append tailoring session entry (date, firm, role, CV code
 
 ### Input
 1. Ask: "Who are you reaching out to? (name + firm)"
-2. Read `raw/firms-contacts.md` — load contact entry: relationship type, last contact, notes
-3. Read `raw/profile.md` — load positioning summary and target framing
+2. Read `02-hiring-side/firms-contacts.md` — load contact entry: relationship type, last contact, notes
+3. Read `01-candidate-side/profile.md` — load positioning summary and target framing
 4. Ask: "LinkedIn message (≤300 chars) or email?"
 
 ### Draft
@@ -318,8 +331,8 @@ Show preview:
 | Firm | Role | Date | Channel | CV version | Contact | JD saved |
 ```
 Ask: "Log this application? (yes / no)"
-→ If yes: append to `wiki/pipeline.md`
-→ If JD provided: save to `wiki/jd-log/{firm-slug}-{role-slug}-{YYYY-MM-DD}.md`
+→ If yes: append to `03-active-search/pipeline.md`
+→ If JD provided: save to `02-hiring-side/job-descriptions/active/` as `company__role__source__YYYY-MM-DD.md` (see `02-hiring-side/job-descriptions/README.md`)
 
 If `notion_available = true`: "Also create Notion pipeline entry? (yes / skip)"
 
@@ -330,7 +343,7 @@ If `notion_available = true`: "Also create Notion pipeline entry? (yes / skip)"
 **Goal:** Surface pending approvals, version gaps, and missing artifacts.
 
 ### Read
-- `wiki/cv-strategy.md` — version registry
+- `03-active-search/cv-strategy.md` — version registry
 
 ### Output
 Table:
@@ -354,7 +367,7 @@ Flag:
 **Goal:** Run a full LinkedIn profile optimization session using career-helper.
 
 ### Prepare context
-Read `raw/linkedin.md` (current headline, about, skills) and `raw/profile.md` (target roles, positioning).
+Read `01-candidate-side/linkedin.md` (current headline, about, skills) and `01-candidate-side/profile.md` (target roles, positioning).
 Format as a context brief for career-helper:
 ```
 Current headline: [X]
@@ -370,10 +383,10 @@ audit of headline, about, skills, and recommendations."
 Pass context brief. Career-helper handles the full analysis.
 
 ### After session
-Ask: "Update raw/linkedin.md with the revised sections? (yes / skip)"
+Ask: "Update 01-candidate-side/linkedin.md with the revised sections? (yes / skip)"
 → If yes: show diff, confirm, write
 
-Log in `wiki/sessions.md`:
+Log in `03-active-search/sessions.md`:
 ```
 | linkedin-session | {YYYY-MM-DD} | [60 days] | up to date |
 ```
@@ -408,7 +421,7 @@ Highlight: added metrics, added specificity, corrected framing
 Ask: "Apply these updates to experience-bank.md? (yes / no)"
 → Confirm before writing any changes
 
-Log in `wiki/sessions.md`: date + role covered + number of bullets updated
+Log in `03-active-search/sessions.md`: date + role covered + number of bullets updated
 
 ---
 
@@ -417,9 +430,9 @@ Log in `wiki/sessions.md`: date + role covered + number of bullets updated
 **Goal:** Review and update the CV versioning strategy based on current pipeline and targets.
 
 ### Read
-- `wiki/cv-strategy.md` — current version registry and tailoring rules
-- `wiki/pipeline.md` — active pipeline to understand which sectors are being targeted
-- `raw/profile.md` — target roles and sector priorities
+- `03-active-search/cv-strategy.md` — current version registry and tailoring rules
+- `03-active-search/pipeline.md` — active pipeline to understand which sectors are being targeted
+- `01-candidate-side/profile.md` — target roles and sector priorities
 
 ### Analysis
 - Map active pipeline entries to CV versions: does each application have a suitable version?
@@ -433,7 +446,7 @@ Show diffs for any proposed rule changes
 
 Ask: "Apply proposed changes to cv-strategy.md? (yes / no)"
 
-Log in `wiki/sessions.md`
+Log in `03-active-search/sessions.md`
 
 ---
 
@@ -443,8 +456,8 @@ Log in `wiki/sessions.md`
 
 ### Prepare
 1. Ask: "Which CV version? (code or file path)"
-2. Ask: "Which JD? (load from jd-log/ or paste)"
-   → Check `wiki/jd-log/` for available JDs and list them
+2. Ask: "Which JD? (load from `02-hiring-side/job-descriptions/active/` or paste)"
+   → Check `02-hiring-side/job-descriptions/active/` for available JDs and list them
 
 ### Delegate
 Pass both documents to career-helper's ATS-Helper mode.
@@ -454,7 +467,7 @@ career-helper surfaces: keyword coverage %, gaps, suggested rewrites, ATS score 
 "Run CV Tailor with these ATS gaps as input? (yes / skip)"
 → If yes: go to CV Tailor mode with gaps pre-loaded
 
-Log in `wiki/sessions.md`
+Log in `03-active-search/sessions.md`
 
 ---
 
@@ -463,7 +476,7 @@ Log in `wiki/sessions.md`
 **Goal:** Summarize the week's job search activity and set goals for next week.
 
 ### Read
-- `wiki/pipeline.md` — filter entries updated or created in the past 7 days
+- `03-active-search/pipeline.md` — filter entries updated or created in the past 7 days
 
 ### Compute
 - Applications submitted this week
@@ -493,7 +506,7 @@ Bottleneck flag: [e.g., "Low response rate (0%) — CV/channel review recommende
 Ask: "Any goals or constraints for next week? (e.g., 'target 3 applications', 'reach out to 2 contacts')"
 → Append to sessions.md log entry
 
-Log in `wiki/sessions.md`
+Log in `03-active-search/sessions.md`
 
 ---
 
@@ -502,7 +515,7 @@ Log in `wiki/sessions.md`
 **Goal:** Diagnose where the job search funnel is leaking and propose concrete adjustments.
 
 ### Read
-- `wiki/pipeline.md` — full history, all entries
+- `03-active-search/pipeline.md` — full history, all entries
 
 ### Compute
 For each funnel stage, compute conversion rate:
@@ -525,7 +538,7 @@ Top bottleneck: [stage] — [diagnosis]
 ```
 Propose 2–3 next actions (which session to run, which channel to deprioritize, etc.)
 
-Log in `wiki/sessions.md`
+Log in `03-active-search/sessions.md`
 
 ---
 
@@ -535,9 +548,9 @@ Log in `wiki/sessions.md`
 
 ### Input
 1. Ask: "Which firm and role is this for?"
-2. Load JD: check `wiki/jd-log/` for a match → list available JDs → if none, ask user to paste
-3. Read `raw/experience-bank.md` — identify top 3 most relevant accomplishments
-4. Read `raw/profile.md` — load positioning, gap narrative (if any)
+2. Load JD: check `02-hiring-side/job-descriptions/active/` for a match → list available JDs → if none, ask user to paste
+3. Read `01-candidate-side/experience-bank.md` — identify top 3 most relevant accomplishments
+4. Read `01-candidate-side/profile.md` — load positioning, gap narrative (if any)
 
 ### Draft
 Three-paragraph structure:
@@ -552,7 +565,7 @@ Rules:
 
 ### Output
 Show full draft. Ask: "Save this cover letter? (yes / edit / discard)"
-→ Save to `outputs/cover-letters/{firm-slug}-{role-slug}-{YYYY-MM-DD}.md`
+→ Save to `01-candidate-side/assets/cover-letters/{firm-slug}-{role-slug}-{YYYY-MM-DD}.md`
 
 Offer: "Run ATS review against this JD? (yes / skip)"
 
@@ -588,10 +601,10 @@ Re-engage timeline: [e.g., "reach out again in 6 months"]
 ```
 
 ### Update
-Update `wiki/pipeline.md` entry status to `rejected`, add notes field with diagnosis summary.
+Update `03-active-search/pipeline.md` entry status to `rejected`, add notes field with diagnosis summary.
 "Update pipeline entry for [Firm – Role]? (yes / skip)"
 
-Log in `wiki/sessions.md`
+Log in `03-active-search/sessions.md`
 
 ---
 
@@ -602,14 +615,14 @@ Log in `wiki/sessions.md`
 ### Input
 Collect for each offer:
 - Firm, role, base salary, bonus (%), equity/RSUs (if any), benefits, start date
-- Read `raw/profile.md` for `salary_floor`, `geography`, and non-compensation targets
+- Read `01-candidate-side/profile.md` for `salary_floor`, `geography`, and non-compensation targets
 
 ### Delegate
 Pass offer details + profile context to career-helper's offer evaluation mode.
 career-helper handles: market benchmarking, total comp calculation, multi-offer comparison,
 regional adjustments, negotiation leverage points.
 
-Log in `wiki/sessions.md`
+Log in `03-active-search/sessions.md`
 
 ---
 
@@ -618,9 +631,9 @@ Log in `wiki/sessions.md`
 **Goal:** Map contacts to targets, identify gaps, and produce a prioritized outreach sequence.
 
 ### Read
-- `raw/firms-contacts.md` — contact registry with firm, relationship type, last contact date
-- `wiki/pipeline.md` — active target firms
-- `raw/profile.md` — target firms and tiers
+- `02-hiring-side/firms-contacts.md` — contact registry with firm, relationship type, last contact date
+- `03-active-search/pipeline.md` — active target firms
+- `01-candidate-side/profile.md` — target firms and tiers
 
 ### Analysis
 - Map each Tier 1 and Tier 2 firm to contacts: warm (know personally), lukewarm (met once,
@@ -644,7 +657,7 @@ Recommended outreach sequence:
 
 Ask: "Save this sequencing plan to firms-contacts.md? (yes / skip)"
 
-Log in `wiki/sessions.md`
+Log in `03-active-search/sessions.md`
 
 ---
 
@@ -654,7 +667,7 @@ Log in `wiki/sessions.md`
 
 ### Input
 Ask: "How many contacts and over what time window? (e.g., 8 contacts over 3 weeks)"
-Read `raw/firms-contacts.md` for contact list + outreach history.
+Read `02-hiring-side/firms-contacts.md` for contact list + outreach history.
 
 ### Draft
 Generate all messages in batch:
@@ -681,7 +694,7 @@ Log approved campaign in firms-contacts.md outreach history.
 
 ### Input
 1. Ask: "Which firm are you researching?"
-2. Check `outputs/firm-profiles/` for an existing profile — if found within 30 days, offer
+2. Check `01-candidate-side/assets/firm-profiles/` for an existing profile — if found within 30 days, offer
    to reuse: "I have a profile for [Firm] from [date] — use that or refresh?"
 
 ### Delegate
@@ -690,7 +703,7 @@ research mode. career-helper researches: recent news, org structure, key people,
 hiring patterns, open roles.
 
 ### After
-Save structured profile to `outputs/firm-profiles/{firm-slug}-{YYYY-MM-DD}.md`
+Save structured profile to `01-candidate-side/assets/firm-profiles/{firm-slug}-{YYYY-MM-DD}.md`
 
 Offer: "Update firms-contacts.md with new intel and identify outreach targets? (yes / skip)"
 
@@ -702,8 +715,8 @@ Offer: "Update firms-contacts.md with new intel and identify outreach targets? (
 
 ### Input
 1. Ask: "Which firm and role?"
-2. Load JD from `wiki/jd-log/` if available
-3. Read `raw/experience-bank.md` — identify accomplishments to anchor early wins
+2. Load JD from `02-hiring-side/job-descriptions/active/` if available
+3. Read `01-candidate-side/experience-bank.md` — identify accomplishments to anchor early wins
 4. Offer: "Run company research first to anchor the plan? (yes / skip — I'll work from what I know)"
    → If yes: delegate to Firm Deep Dive mode first, then continue
 
@@ -717,7 +730,7 @@ Anchor each phase with specific accomplishments from experience-bank that eviden
 
 ### Output
 Formatted plan (ready to print or share). Ask: "Save this plan? (yes / discard)"
-→ Save to `outputs/90day-plans/{firm-slug}-{role-slug}-{YYYY-MM-DD}.md`
+→ Save to `01-candidate-side/assets/90day-plans/{firm-slug}-{role-slug}-{YYYY-MM-DD}.md`
 
 ---
 
@@ -726,7 +739,7 @@ Formatted plan (ready to print or share). Ask: "Save this plan? (yes / discard)"
 **Goal:** Update profile.md with new filters, targets, or positioning.
 
 ### Read
-- `raw/profile.md` — display current state in full
+- `01-candidate-side/profile.md` — display current state in full
 
 ### Update
 Accept natural language changes:
@@ -748,23 +761,27 @@ Show full diff before writing. Ask: "Apply these changes? (yes / no)"
 ### Steps
 1. Ask: "Where's your vault root? What should the agent folder be called? (default: headhunter)"
 2. Create directory structure:
-   - `agents/<name>/raw/`, `agents/<name>/wiki/`, `agents/<name>/wiki/jd-log/`,
-     `agents/<name>/cv-versions/`, `agents/<name>/outputs/cover-letters/`,
-     `agents/<name>/outputs/firm-profiles/`, `agents/<name>/outputs/90day-plans/`
+   - `agents/<name>/00-inbox/tmp/`, `agents/<name>/01-candidate-side/`, `agents/<name>/01-candidate-side/assets/{cover-letters,firm-profiles,plans-90day}/`
+   - `agents/<name>/02-hiring-side/firm-notes/`, `agents/<name>/02-hiring-side/job-descriptions/{active,archive}/`
+   - `agents/<name>/03-active-search/plans/`, `agents/<name>/04-search-record/{quality,audits,opportunity-scans}/`
+   - `agents/<name>/90-system/`, `agents/<name>/cv-versions/` (optional)
 3. Create files from reference templates:
-   - `raw/profile.md` from `profile-template.md`
-   - `raw/experience-bank.md` from `experience-bank-template.md`
-   - `raw/firms-contacts.md` from `firms-contacts-template.md`
-   - `raw/linkedin.md` (blank, with section headers)
-   - `wiki/cv-strategy.md` from `cv-strategy-template.md`
-   - `wiki/pipeline.md` (blank table with headers)
-   - `wiki/sessions.md` (initialized table — all sessions at `never`)
-4. Walk user through filling in `raw/profile.md` interactively (identity, target roles, salary floor, geography, exclusions)
+   - `01-candidate-side/profile.md` from `profile-template.md`
+   - `01-candidate-side/experience-bank.md` from `experience-bank-template.md`
+   - `02-hiring-side/firms-contacts.md` from `firms-contacts-template.md`
+   - `01-candidate-side/linkedin.md` (blank, with section headers)
+   - `03-active-search/cv-strategy.md` from `cv-strategy-template.md`
+   - `03-active-search/pipeline.md` (blank table with headers)
+   - `03-active-search/application-events.md` (header + empty log)
+   - `03-active-search/sessions.md` (initialized table — all sessions at `never`)
+   - `02-hiring-side/job-descriptions/README.md` (minimal stub: filename pattern + frontmatter)
+   - `90-system/index.md` + `90-system/conventions.md` (minimal stubs with links into `03-active-search/`)
+4. Walk user through filling in `01-candidate-side/profile.md` interactively (identity, target roles, salary floor, geography, exclusions)
 5. Offer: "Run an Experience Bank Session now to start building your verified content? (yes / later)"
 
 ---
 
-## Session tracking format (wiki/sessions.md)
+## Session tracking format (03-active-search/sessions.md)
 
 ```markdown
 # Session History
@@ -798,7 +815,7 @@ Status = `up to date` if within cadence, `overdue` if past cadence, `never` if f
 
 ---
 
-## Pipeline format (wiki/pipeline.md)
+## Pipeline format (03-active-search/pipeline.md)
 
 ```markdown
 # Pipeline
@@ -825,4 +842,4 @@ These rules apply to all write operations across all modes:
 4. **Never send outreach** (LinkedIn or email) without explicit "yes" for that specific message.
 5. **Gmail drafts only** — never use send functions directly; always save as draft first.
 6. **Append-only for pipeline and sessions** — never delete historical rows.
-7. **Log every session** in wiki/sessions.md after completion.
+7. **Log every session** in `03-active-search/sessions.md` after completion.

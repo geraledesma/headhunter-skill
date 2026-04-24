@@ -28,21 +28,25 @@ headhunter expects a folder layout inside your vault:
 ```
 <vault-root>/
 └── agents/headhunter/
-    ├── raw/
-    │   ├── profile.md            ← who you are, what you're targeting, hard filters
-    │   ├── experience-bank.md    ← verified work history — the single source of truth for CV content
-    │   ├── firms-contacts.md     ← target firms by tier, key contacts, outreach history
-    │   └── linkedin.md           ← LinkedIn positioning (headline, about, skills)
-    ├── wiki/
-    │   ├── cv-strategy.md        ← CV version registry, tailoring rules, approval log
-    │   ├── pipeline.md           ← active + historical application log
-    │   ├── sessions.md           ← session cadence tracking + log
-    │   └── jd-log/               ← full job descriptions, one file per role
-    ├── cv-versions/              ← named .docx/.pdf CV files
-    └── outputs/
-        ├── cover-letters/
-        ├── firm-profiles/
-        └── 90day-plans/
+    ├── 01-candidate-side/
+    │   ├── profile.md
+    │   ├── experience-bank.md
+    │   ├── linkedin.md
+    │   └── assets/               ← cover-letters, firm-profiles, plans
+    ├── 02-hiring-side/
+    │   ├── firms-contacts.md
+    │   ├── fintech-targets.md
+    │   ├── firm-notes/
+    │   └── job-descriptions/       ← active/ + archive/
+    ├── 03-active-search/
+    │   ├── cv-strategy.md
+    │   ├── pipeline.md
+    │   ├── application-events.md
+    │   ├── sessions.md
+    │   └── plans/
+    ├── 04-search-record/          ← dated audits, scans, lints
+    ├── 90-system/                 ← runbook, index, conventions
+    └── cv-versions/               ← optional .docx/.pdf CV files
 ```
 
 Run onboarding to create this structure from templates:
@@ -93,10 +97,14 @@ and Notion entries show a preview/diff and require an explicit "yes" before anyt
 to your CV or cover letters. If something can't be sourced from your experience bank, it's
 marked `[MISSING]`.
 
-**JDs are saved for future use.** Every role you're interested in gets its full JD logged in
-`wiki/jd-log/` — so ATS reviews, cover letters, and 90-day plans always have the original source.
+**JDs live under hiring-side.** Full postings are saved under `02-hiring-side/job-descriptions/active/`
+(naming: `company__role__source__YYYY-MM-DD.md`). The agent **always asks once** whether to save the JD when you applied or will apply.
 
-**Sessions are tracked.** `wiki/sessions.md` records when each session type was last run.
+**Vault memory is proactive.** After material updates (application, reply, interview, rejection, referral),
+the agent appends to `03-active-search/application-events.md` and updates `03-active-search/pipeline.md`
+per `90-system/runbook.md` — not optional “remember to log later.”
+
+**Sessions are tracked.** `03-active-search/sessions.md` records when each session type was last run.
 headhunter checks cadences at the start of every conversation and surfaces what's overdue.
 
 ---
@@ -110,7 +118,7 @@ headhunter checks cadences at the start of every conversation and surfaces what'
 | Gmail MCP | Optional | Saving outreach email drafts |
 | career-helper skill | Recommended | LinkedIn optimization, ATS review, offer evaluation, company research |
 
-Configure Notion integration in `raw/profile.md § Config`:
+Configure Notion integration in `01-candidate-side/profile.md` (Config section):
 ```
 notion_enabled: true
 notion_pipeline_db: [database name or ID]
